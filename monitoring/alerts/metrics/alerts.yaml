@@ -1,0 +1,101 @@
+groups:
+  - name: container-alerts
+    rules:
+      - alert: ContainerCpuUsageHigh
+        annotations:
+          description: |
+            Container for app::{{ $labels.app }} service::{{ $labels.service }} revision::{{ $labels.revision }}
+            instance:: {{ $labels.instance }} is using high CPU.
+            VALUE = {{ $value }}
+            LABELS = {{ $labels }}
+          summary: Container CPU usage is high
+          runbook_url: <<RUNBOOK>>
+        expr: |
+          (
+              sum(rate(container_cpu_usage_seconds_total{provider="mdp", app="logmeingotowebinar"}[5m])) by (app, service, revision, instance, env)
+              / sum(container_spec_cpu_quota{provider="mdp", app="logmeingotowebinar"}
+              /container_spec_cpu_period{provider="mdp", app="logmeingotowebinar"}
+          ) by (app, service, revision, instance, env) * 100) > 80
+        for: 5m
+        labels:
+          hedwig_scope: <<HEDWIG_SCOPE>>
+          severity: critical
+          alert_group: container
+      - alert: ContainerMemoryUsageHigh
+        annotations:
+          description: |
+            Container for app::{{ $labels.app }} service::{{ $labels.service }} revision::{{ $labels.revision }}
+            instance:: {{ $labels.instance }} is using high memory.
+            VALUE = {{ $value }}
+            LABELS = {{ $labels }}
+          summary: Container Memory usage is high
+          runbook_url: <<RUNBOOK>>
+        expr: |
+          (
+            sum(container_memory_working_set_bytes{provider="mdp", app="logmeingotowebinar"}) by (app, service, revision, instance, env)
+            / sum(container_spec_memory_limit_bytes{provider="mdp", app="logmeingotowebinar"}) by (app, service, revision, instance, env)
+          ) * 100 > 80
+        for: 5m
+        labels:
+          hedwig_scope: <<HEDWIG_SCOPE>>
+          severity: critical
+          alert_group: container
+      - alert: ContainerCpuThrottling
+        annotations:
+          description: |
+            Container for app::{{ $labels.app }} service::{{ $labels.service }} revision::{{ $labels.revision }}
+            instance:: {{ $labels.instance }} is having its CPU throttled {{ $value | humanizePercentage }} of the time.
+            VALUE = {{ $value }}
+            LABELS = {{ $labels }}
+          summary:  Container is having its CPU usage throttled.
+          runbook_url: <<RUNBOOK>>
+        expr: |
+          avg(
+              rate(container_cpu_cfs_throttled_periods_total{provider="mdp", app="logmeingotowebinar"}[5m])
+              /
+              rate(container_cpu_cfs_periods_total{provider="mdp", app="logmeingotowebinar" }[5m])
+          ) by (app, service, revision, instance, env)  > 0.5
+        for: 10m
+        labels:
+          hedwig_scope: <<HEDWIG_SCOPE>>
+          severity: warning
+          alert_group: kubernetes
+      - alert: ContainerLowCpuUtilization
+        annotations:
+          description: |
+            Container for app::{{ $labels.app }} service::{{ $labels.service }} revision::{{ $labels.revision }}
+            instance:: {{ $labels.instance }} is using low CPU. Consider reducing the allocated cpu.
+            VALUE = {{ $value }}
+            LABELS = {{ $labels }}
+          summary: Container CPU usage is low
+          runbook_url: <<RUNBOOK>>
+        expr: |
+          (
+            sum(rate(container_cpu_usage_seconds_total{provider="mdp", app="logmeingotowebinar"}[5m])) by (app, service, revision, instance, env) 
+            / sum(container_spec_cpu_quota{provider="mdp", app="logmeingotowebinar"}
+            / container_spec_cpu_period{provider="mdp", app="logmeingotowebinar"}
+          ) by (app, service, revision, instance, env) * 100) < 20
+        for: 7d
+        labels:
+          hedwig_scope: <<HEDWIG_SCOPE>>
+          severity: warning
+          alert_group: container
+      - alert: ContainerLowMemoryUtilization
+        annotations:
+          description: |
+            Container for app::{{ $labels.app }} service::{{ $labels.service }} revision::{{ $labels.revision }}
+            instance:: {{ $labels.instance }} is using low memory. Consider reducing the allocated memory.
+            VALUE = {{ $value }}
+            LABELS = {{ $labels }}
+          summary: Container Memory usage is low
+          runbook_url: <<RUNBOOK>>
+        expr: |
+          (
+            sum(container_memory_working_set_bytes{provider="mdp", app="logmeingotowebinar"}) by (app, service, revision, instance, env) 
+            / sum(container_spec_memory_limit_bytes{provider="mdp", app="logmeingotowebinar"}) by (app, service, revision, instance, env)
+          ) * 100 < 20
+        for: 7d
+        labels:
+          hedwig_scope: <<HEDWIG_SCOPE>>
+          severity: warning
+          alert_group: container

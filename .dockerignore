@@ -1,0 +1,7 @@
+node_modules/
+.git
+.github
+.mdp
+monitoring
+Dockerfile
+README.md
